@@ -1,6 +1,6 @@
 require "erb"
 module TraceReplay
-  def self.start out, *prefixes
+  def self.start out, cut_prefixes: [], skip_lines: []
     thread_main = ::Thread.main
 
     backtraces = []
@@ -51,9 +51,11 @@ module TraceReplay
         end
         [
           time_bt,
-          bt.reverse.each_cons(2).map do |(path, lineno, _), (_, _, mtd)|
+          bt.reverse.each_cons(2).filter_map do |(path, lineno, _), (_, _, mtd)|
             n, name = h[[path, lineno, mtd.to_sym]]
-            [n, name || mtd, "#{prefixes.reduce(path){ |path, prefix| path.delete_prefix prefix }} : #{lineno}"]
+            path = cut_prefixes.reduce(path){ |path, prefix| path.delete_prefix prefix }
+            next if skip_lines.any?{ |_| _.match? path }
+            [n, name || mtd, "#{path} : #{lineno}"]
           end,
         ]
       end
